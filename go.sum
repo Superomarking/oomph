@@ -122,6 +122,9 @@ github.com/onsi/ginkgo/v2 v2.23.0/go.mod h1:zXTP6xIp3U8aVuXN8ENK9IXRaTjFnpVB9mGm
 github.com/onsi/gomega v1.4.3/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
 github.com/onsi/gomega v1.36.2 h1:koNYke6TVk6ZmnyHrCXba/T/MoLBXFjeC1PtvYgw0A8=
 github.com/onsi/gomega v1.36.2/go.mod h1:DdwyADRjrc825LhMEkD76cHR5+pUnjhUN8GlHlRPHzY=
+github.com/oomph-ac/oconfig v0.0.0-20250315200330-e36f34d634e5/go.mod h1:P72gajWX7dlQjcA6pjZNNyfndDQsE8zwhbaa18tX+x8=
+github.com/oomph-ac/oconfig v0.0.0-20250324182948-fdea6717a9a1 h1:b+1kSM0rfxXmeYdeiO9inb47blNDQ3izEenIbxjt7bI=
+github.com/oomph-ac/oconfig v0.0.0-20250324182948-fdea6717a9a1/go.mod h1:2hkIOpKyeO2X0YhZ3puE+9CjvFiLsSKRz2RwCPDw5ho=
 github.com/openzipkin/zipkin-go v0.1.1/go.mod h1:NtoC/o8u3JlF1lSlyPNswIbeQH9bJTmOf0Erfk+hxe8=
 github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5/go.mod h1:jvVRKCrJTQWu0XVbaOlby/2lO20uSCHEMzzplHXte1o=
 github.com/petermattis/goid v0.0.0-20240327183114-c42a807a84ba h1:3jPgmsFGBID1wFfU2AbYocNcN4wqU68UaHSdMjiw/7U=
