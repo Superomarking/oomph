@@ -39,6 +39,7 @@ func (p *Player) HandleClientPacket(ctx *context.HandlePacketContext) {
 	p.pkCtx = ctx
 	defer func() {
 		p.pkCtx = nil
+		p.worldTx = nil
 	}()
 
 	pk := *(ctx.Packet())
@@ -78,8 +79,6 @@ func (p *Player) HandleClientPacket(ctx *context.HandlePacketContext) {
 				mode = DebugModeRotations
 			case "combat":
 				mode = DebugModeCombat
-			case "clicks":
-				mode = DebugModeClicks
 			case "movement":
 				mode = DebugModeMovementSim
 			case "latency":
@@ -88,10 +87,12 @@ func (p *Player) HandleClientPacket(ctx *context.HandlePacketContext) {
 				mode = DebugModeChunks
 			case "aim-a":
 				mode = DebugModeAimA
-			case "timer-a":
-				mode = DebugModeTimerA
+			case "timer":
+				mode = DebugModeTimer
 			case "block_placement":
 				mode = DebugModeBlockPlacement
+			case "unhandled_packets":
+				mode = DebugModeUnhandledPackets
 			default:
 				p.Message("Unknown debug mode: %s", args[1])
 				return
@@ -263,8 +264,9 @@ func (p *Player) HandleClientPacket(ctx *context.HandlePacketContext) {
 		}
 	case *packet.ItemStackRequest:
 		p.inventory.HandleItemStackRequest(pk)
+	default:
+		p.log.Debugf("unhandled client packet: %T", pk)
 	}
-
 	p.RunDetections(pk)
 }
 
@@ -277,6 +279,7 @@ func (p *Player) HandleServerPacket(ctx *context.HandlePacketContext) {
 	p.pkCtx = ctx
 	defer func() {
 		p.pkCtx = nil
+		p.worldTx = nil
 	}()
 
 	pk := *(ctx.Packet())
@@ -320,8 +323,7 @@ func (p *Player) HandleServerPacket(ctx *context.HandlePacketContext) {
 	case *packet.MobEffect:
 		pk.Tick = 0
 		ctx.SetModified()
-
-		p.handleEffectsPacket(pk)
+		p.Movement().ServerUpdate(pk)
 	case *packet.MoveActorAbsolute:
 		if pk.EntityRuntimeID != p.RuntimeId {
 			p.entTracker.HandleMoveActorAbsolute(pk)

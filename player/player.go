@@ -2,12 +2,14 @@ package player
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"runtime"
 	"sync"
 	"time"
 
+	"github.com/df-mc/dragonfly/server/event"
 	"github.com/df-mc/dragonfly/server/world"
 	"github.com/oomph-ac/oconfig"
 	"github.com/oomph-ac/oomph/entity"
@@ -196,6 +198,9 @@ func New(log *logrus.Logger, mState MonitoringState, listener *minecraft.Listene
 			})
 		},
 	}
+	if mState.IsReplay {
+		p.LastServerTick = mState.CurrentTime
+	}
 
 	p.RegenerateWorld()
 	p.Dbg = NewDebugger(p)
@@ -357,7 +362,7 @@ func (p *Player) SetLog(log *logrus.Logger) {
 // Disconnect disconnects the player with the given reason.
 func (p *Player) Disconnect(reason string) {
 	if p.MState.IsReplay {
-		return
+		panic(fmt.Errorf("disconnect: %v", reason))
 	}
 
 	p.SendPacketToClient(&packet.Disconnect{
@@ -424,7 +429,7 @@ func (p *Player) StartTicking() {
 	for {
 		select {
 		case <-t.C:
-			if !p.tick() {
+			if !p.Tick() {
 				return
 			}
 		case <-p.CloseChan:
@@ -433,8 +438,8 @@ func (p *Player) StartTicking() {
 	}
 }
 
-// tick ticks handlers and checks, and also flushes connections. It returns false if the player should be removed.
-func (p *Player) tick() bool {
+// Tick ticks handlers and checks, and also flushes connections. It returns false if the player should be removed.
+func (p *Player) Tick() bool {
 	p.procMu.Lock()
 	defer p.procMu.Unlock()
 
@@ -442,12 +447,12 @@ func (p *Player) tick() bool {
 		return false
 	}
 
-	delta := time.Since(p.LastServerTick).Milliseconds()
+	delta := p.Time().Sub(p.LastServerTick).Milliseconds()
 	p.LastServerTick = p.Time()
 
 	prevTick := p.ServerTick
-	if delta >= 100 {
-		p.ServerTick += (delta / 50) - 1
+	if delta > 50 {
+		p.ServerTick += (delta / 50) + 1
 	} else {
 		p.ServerTick++
 	}
@@ -462,13 +467,24 @@ func (p *Player) tick() bool {
 		p.Disconnect(game.ErrorNetworkTimeout)
 		return false
 	}
-	p.ACKs().Flush()
-	if err := p.conn.Flush(); err != nil {
-		return false
+	// If the player state is from a replay, we should only flush the acknowledgment component when
+	// requested by the program handling the replay.
+	if !p.MState.IsReplay {
+		p.ACKs().Flush()
 	}
-	if srvConn, ok := p.serverConn.(*minecraft.Conn); ok {
-		if err := srvConn.Flush(); err != nil {
+
+	if h := p.eventHandler; h != nil {
+		h.HandleTick(event.C(p))
+	}
+
+	if !p.MState.IsReplay {
+		if err := p.conn.Flush(); err != nil {
 			return false
+		}
+		if srvConn, ok := p.serverConn.(*minecraft.Conn); ok {
+			if err := srvConn.Flush(); err != nil {
+				return false
+			}
 		}
 	}
 	return true

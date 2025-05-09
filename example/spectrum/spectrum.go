@@ -13,12 +13,14 @@ import (
 	"github.com/cooldogedev/spectrum"
 	"github.com/cooldogedev/spectrum/server"
 	"github.com/cooldogedev/spectrum/session"
+	"github.com/cooldogedev/spectrum/transport"
 	"github.com/cooldogedev/spectrum/util"
 	"github.com/go-echarts/statsview"
 	"github.com/go-echarts/statsview/viewer"
 	"github.com/oomph-ac/oconfig"
 	"github.com/oomph-ac/oomph"
 	"github.com/oomph-ac/oomph/player"
+	otransport "github.com/oomph-ac/oomph/transport"
 	"github.com/oomph-ac/oomph/utils"
 	"github.com/sandertv/gophertunnel/minecraft"
 	"github.com/sandertv/gophertunnel/minecraft/protocol/packet"
@@ -64,12 +66,44 @@ func main() {
 		panic(err)
 	}
 
+	oconfig.Cfg = oconfig.DefaultConfig
+	oconfig.Cfg.Network.Transport = oconfig.NetworkTransportTCP
+
+	oconfig.Cfg.Movement.AcceptClientPosition = true
+	oconfig.Cfg.Movement.PositionAcceptanceThreshold = 0.001
+
+	oconfig.Cfg.Movement.AcceptClientVelocity = false
+	oconfig.Cfg.Movement.PersuasionThreshold = 0.0005
+	oconfig.Cfg.Movement.CorrectionThreshold = 0.002
+
+	oconfig.Cfg.Combat.FullAuthoritative = true
+	oconfig.Cfg.Combat.MaxRewind = 4
+
+	//oconfig.Cfg.Movement.AcceptClientPosition = true
+	//oconfig.Cfg.Movement.PositionAcceptanceThreshold = 0.0625
+
 	packs, err := utils.ResourcePacks("/home/ethaniccc/temp/proxy-packs", "content_keys.json")
 	if err != nil {
 		panic(err)
 	}
 
-	proxy := spectrum.NewSpectrum(server.NewStaticDiscovery(os.Args[2], os.Args[2]), logger, opts, nil)
+	var netTransport transport.Transport
+	switch tr := oconfig.Network().Transport; tr {
+	case oconfig.NetworkTransportTCP:
+		netTransport = otransport.NewTCP()
+	default:
+		if tr != oconfig.NetworkTransportSpectral {
+			logrus.Warnf("unknown/unsupported transport: %s, defaulting to spectral", tr)
+		}
+		netTransport = transport.NewSpectral(logger)
+	}
+
+	proxy := spectrum.NewSpectrum(
+		server.NewStaticDiscovery(os.Args[2], os.Args[2]),
+		logger,
+		opts,
+		netTransport,
+	)
 	if err := proxy.Listen(minecraft.ListenConfig{
 		StatusProvider:       statusProvider,
 		FlushRate:            -1, // FlushRate is set to -1 to allow Oomph to manually flush the connection.
@@ -92,20 +126,6 @@ func main() {
 	}); err != nil {
 		panic(err)
 	}
-
-	oconfig.Cfg = oconfig.DefaultConfig
-	oconfig.Cfg.Movement.AcceptClientPosition = false
-	oconfig.Cfg.Movement.AcceptClientVelocity = false
-	/* oconfig.Cfg.Movement.PositionAcceptanceThreshold = 0.125
-	oconfig.Cfg.Movement.AcceptClientVelocity = true
-	oconfig.Cfg.Movement.VelocityAcceptanceThreshold = 0.07 */
-	oconfig.Cfg.Movement.PersuasionThreshold = 0.005
-	oconfig.Cfg.Combat.FullAuthoritative = true
-
-	oconfig.Cfg.Combat.MaxRewind = 4
-
-	//oconfig.Cfg.Movement.AcceptClientPosition = true
-	//oconfig.Cfg.Movement.PositionAcceptanceThreshold = 0.0625
 
 	go func() {
 		var interrupt = make(chan os.Signal, 1)
